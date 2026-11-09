@@ -18,6 +18,9 @@ $( [ "$g" = tariff-wars ] && echo '- `relay/` is the multiplayer table server (a
 $( [ "$g" = nuclear-negotiations ] && echo '- The rules are in `game/engine.js`, free of any DOM code, so an AI or a server can drive the same table.' )
 $( [ "$g" = wallop ] && echo '- The price feed is a seeded simulation (`game/js/engine.js`); a real one needs a server that settles rounds on a live BTC price.' )
 R
-  (cd build/$g && zip -qr ../../public/source/$g.zip .)
+  # Reproducible: fixed file times, sorted file list, no extra attributes, old zip removed first.
+  find build/$g -exec touch -h -d '2026-01-01 00:00:00 UTC' {} +
+  rm -f public/source/$g.zip
+  (cd build/$g && find . -type f | LC_ALL=C sort | TZ=UTC zip -qX ../../public/source/$g.zip -@)
 done
 ls -la public/source
