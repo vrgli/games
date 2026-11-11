@@ -138,6 +138,34 @@
    '.RRRRRRQQRRRRRR.',
    'RRRRRRRQQRRRRRRR',
    'RRRRRRRRRRRRRRRR']},
+  /* the gorilla that walks across the room */
+  gorilla:{pal:{K:'#2a2726',H:'#3d3836',F:'#6b5a50',E:'#f2e6c8',P:'#151212',N:'#1a1414'},map:[
+   '................',
+   '.....KKKKKK.....',
+   '....KKKKKKKK....',
+   '...KKFFKKFFKK...',
+   '...KKFEFFEFKK...',
+   '...KKFPFFPFKK...',
+   '....KFFNNFFK....',
+   '..KKKKFFFFKKKK..',
+   '.KKHHKKKKKKHHKK.',
+   'KKHHHKFFFFKHHHKK',
+   'KKH.KKFFFFKK.HKK',
+   'KKK.KKKKKKKK.KKK',
+   'FF..KKKKKKKK..FF',
+   '....KKK..KKK....',
+   '....KKK..KKK....',
+   '...FFFF..FFFF...']},
+  /* the flying saucer of the alien invasion, 16×8 */
+  ufo:{pal:{G:'#9dffb0',D:'#3ad06a',M:'#c9ced6',S:'#7d838c',L:'#ffd400',K:'#2b2f36'},map:[
+   '.....GGGGGG.....',
+   '....GDDGGDDG....',
+   '...GGGGGGGGGG...',
+   '.MMMMMMMMMMMMMM.',
+   'MMLMMLMMMMLMMLMM',
+   '.SSSSSSSSSSSSSS.',
+   '...KKK....KKK...',
+   '................']},
   /* the mushroom cloud, 16×16, drawn big over the table when the rogues meet */
   nuke:{pal:{W:'#fff6d5',Y:'#ffd400',O:'#ff8a1f',R:'#e8331c',D:'#7a1a0e',K:'#2a1410',G:'#5b4a3a'},map:[
    '.....WWWWWW.....',
@@ -157,11 +185,19 @@
    '..GGGGKKKKGGGG..',
    '.GGGGGGGGGGGGGG.']}
  };
- function draw(name,px){
+ // The lizard version of a leader: same hair and clothes, green scaly skin, yellow slit eyes, forked tongue.
+ var LIZ={S:'#5aa845',E:'#ffd400',M:'#d9466a',D:'#3c7a2e',B:'#7cc26a'};
+ function draw(name,px,variant){
   var sp=SPRITES[name],c=document.createElement('canvas');px=px||4;
-  c.width=16*px;c.height=16*px;c.className='px';
+  var lz=variant==='lizard'&&name!=='nuke',rows=sp.map.length;
+  c.width=16*px;c.height=rows*px;c.className='px';
   var g=c.getContext('2d');
-  sp.map.forEach(function(row,y){for(var x=0;x<16;x++){var k=row[x];if(k==='.')continue;g.fillStyle=sp.pal[k]||'#f0f';g.fillRect(x*px,y*px,px,px);}});
+  sp.map.forEach(function(row,y){for(var x=0;x<16;x++){var k=row[x];if(k==='.')continue;
+   var col=sp.pal[k]||'#f0f';
+   if(lz&&LIZ[k]){col=LIZ[k];if(k==='S'&&(x+y)%3===0)col='#3f8a34';}
+   g.fillStyle=col;g.fillRect(x*px,y*px,px,px);
+   if(lz&&k==='E'){g.fillStyle='#111';g.fillRect(x*px+px*.4,y*px,px*.25,px);}
+  }});
   return c;
  }
  root.PX={draw:draw,SPRITES:SPRITES};

@@ -15,8 +15,9 @@
 
   function pos(el, r, deg) { var a = deg * Math.PI / 180; el.style.left = (50 + r * Math.cos(a)) + '%'; el.style.top = (50 + r * Math.sin(a)) + '%'; }
   function seat(id, k, ring) {
-    var el = document.createElement('div'); el.className = 'seat idle-' + IDLE[id]; el.dataset.k = k;
-    el.appendChild(PX.draw(id, 6));
+    var el = document.createElement('div'); el.className = 'seat idle-' + IDLE[id]; el.dataset.k = k; el.dataset.id = id;
+    var lz = G && G.lizard && NN.lizard(G);
+    el.appendChild(PX.draw(id, 6, lz ? 'lizard' : null)); if (lz) el.classList.add('lizard');
     var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = NN.name(id).toUpperCase(); el.appendChild(nm);
     var slot = ring === 'o' ? ((k - rot / 90) % 4 + 4) % 4 : k;           // outer: the slot before the ring's own rotation
     pos(el, ring === 'o' ? R_OUT : R_IN, ANG[slot]);
@@ -52,6 +53,7 @@
     var ms = NN.clockMs(G.moves);
     if (G.moves === NN.SPELL && stage !== G.moves) { stage = G.moves; banner('HURRY UP', '1 SECOND A MOVE'); SND.play('hurry'); }
     clearInterval(tick); deadline = Date.now() + ms; $('centre').classList.add('clock'); paintClock();
+    var d = NN.distraction(G); if (d) distract(d, ms);
     var lastTick = -1;
     tick = setInterval(function () {
       if (busy || !G || G.over) { clearInterval(tick); return; }
@@ -77,7 +79,7 @@
   }
   function begin(seed, ranked) {
     dealing = false;
-    G = NN.newGame(seed); G.ranked = ranked; rot = 0; busy = true; stage = -1; stopClock();
+    G = NN.newGame(seed); G.ranked = ranked; rot = 0; busy = true; stage = -1; stopClock(); clearFx(true);
     $('seed').textContent = G.seed; $('nuke').hidden = true; $('banner').hidden = true;
     closeSheets(); $('start').hidden = true;
     render(G); paintLog();
@@ -103,7 +105,7 @@
 
   function play(k, timeout) {
     if (busy || !G || G.over || NN.legal(G).indexOf(k) < 0) return;
-    busy = true; stopClock();
+    busy = true; stopClock(); clearFx(false);
     var tmp = JSON.parse(JSON.stringify(G)); var t = tmp.outer[k]; tmp.outer[k] = tmp.inner[k]; tmp.inner[k] = t;
     var line = NN.notation(G, k);
     Array.prototype.forEach.call(document.querySelectorAll('.seat[data-k="' + k + '"]'), function (el) { el.classList.add('swap'); el.classList.remove('can'); });
@@ -118,13 +120,20 @@
           if (G.over) return nuke(res);
           var ev = NN.after(G);
           if (ev && ev.escalate) return escalateFx(ev.escalate);
-          if (ev && ev.calm) return calmFx(ev.calm);
+          if (ev && ev.calm) return calmFx(ev);
+          if (ev && ev.swap) return swapFx(ev.swap, nextMove);
+          if (ev && ev.aliens) return aliensFx(ev.aliens);
           nextMove();
         }, 800);
       }, 150);
     }, 420);
   }
-  function nextMove() { busy = false; markLegal(); armClock(); status('Move ' + (G.moves + 1) + ' · rogues at ' + NN.rogues(G) + ' · tap a rogue'); }
+  function nextMove() {
+    if (G.lizard && !NN.lizard(G) && document.querySelector('.seat.lizard')) render(G);   // the lizards turn back
+    busy = false; markLegal(); armClock();
+    var lz = G.lizard - G.moves;
+    status('Move ' + (G.moves + 1) + ' · rogues at ' + NN.rogues(G) + (lz > 0 ? ' · lizards for ' + lz + ' more move' + (lz === 1 ? '' : 's') : '') + ' · tap a rogue');
+  }
   function escalateFx(pick) {
     render(G); SND.play('reveal'); paintLog();
     Array.prototype.forEach.call(document.querySelectorAll('.seat.rogue'), function (el) { el.classList.add('ignite'); });
@@ -134,14 +143,96 @@
     if (window.vgTrack) vgTrack('nn_escalate', { moves: G.moves, seed: G.seed });
     setTimeout(nextMove, 1300);
   }
-  function calmFx(id) {
-    render(G); SND.play('hurry'); paintLog();
-    banner('HURRY UP', NN.name(id).toUpperCase() + ' STANDS DOWN');
-    status('HURRY UP · ' + NN.name(id) + ' is no longer rogue');
-    setTimeout(nextMove, 1300);
+  // The escalation ends: the third rogue stands down, then SWAP!.
+  function calmFx(ev) {
+    var el = document.querySelector('.seat[data-id="' + ev.calm + '"]'); if (el) el.classList.remove('rogue', 'can');
+    SND.play('hurry'); paintLog();
+    banner('HURRY UP', NN.name(ev.calm).toUpperCase() + ' STANDS DOWN');
+    status('HURRY UP · ' + NN.name(ev.calm) + ' is no longer rogue');
+    setTimeout(function () { if (ev.swap) swapFx(ev.swap, nextMove); else { render(G); nextMove(); } }, 1300);
+  }
+  // SWAP!: the rogue and the calm leader fly across the table into each other's seats.
+  function swapFx(sw, done) {
+    var tb = $('table').getBoundingClientRect(), A = document.querySelector('.seat[data-id="' + sw.a.id + '"]'), B = document.querySelector('.seat[data-id="' + sw.b.id + '"]');
+    banner('SWAP!', NN.name(sw.a.id).toUpperCase() + ' AND ' + NN.name(sw.b.id).toUpperCase() + ' CHANGE SEATS');
+    SND.play('bigswap'); paintLog();
+    status('SWAP! · rogue ' + NN.name(sw.a.id) + ' changes seats with ' + NN.name(sw.b.id));
+    if (window.vgTrack) vgTrack('nn_swap', { moves: G.moves, seed: G.seed });
+    if (!A || !B) { render(G); return setTimeout(done, 1300); }
+    var ra = A.getBoundingClientRect(), rb = B.getBoundingClientRect();
+    function fly(el, from, to) {
+      var c = el.cloneNode(true); c.classList.remove('can', 'ignite', 'swap'); c.classList.add('fx', 'flyer'); c.style.visibility = 'visible';
+      c.style.transform = 'none'; c.style.margin = '0'; c.style.width = from.width + 'px'; c.style.height = from.height + 'px';
+      c.style.left = (from.left - tb.left) + 'px'; c.style.top = (from.top - tb.top) + 'px';
+      var cv = c.querySelector('canvas'); if (cv) { var src = el.querySelector('canvas'); cv.getContext('2d').drawImage(src, 0, 0); }
+      $('table').appendChild(c); void c.offsetWidth;
+      c.style.left = (to.left - tb.left) + 'px'; c.style.top = (to.top - tb.top) + 'px';
+      return c;
+    }
+    A.style.visibility = B.style.visibility = 'hidden';
+    var fa = fly(A, ra, rb), fb = fly(B, rb, ra);
+    setTimeout(function () { fa.remove(); fb.remove(); render(G); markSwapped(sw); setTimeout(done, 350); }, 1100);
+  }
+  function markSwapped(sw) { [sw.a.id, sw.b.id].forEach(function (id) { var e = document.querySelector('.seat[data-id="' + id + '"]'); if (e) e.classList.add('ignite'); }); }
+  // Aliens: a saucer comes down, beams every leader up and sets them down reshuffled, as lizards.
+  function aliensFx(al) {
+    var ufo = document.createElement('div'); ufo.className = 'fx ufo'; ufo.appendChild(PX.draw('ufo', 8));
+    var beam = document.createElement('div'); beam.className = 'fx beam';
+    $('table').appendChild(beam); $('table').appendChild(ufo);
+    SND.play('ufo'); paintLog();
+    banner('ALIEN INVASION', 'THE LEADERS ARE BEAMED UP');
+    status('ALIEN INVASION · the game is paused');
+    if (window.vgTrack) vgTrack('nn_aliens', { moves: G.moves, seed: G.seed });
+    setTimeout(function () { beam.classList.add('on'); Array.prototype.forEach.call(document.querySelectorAll('.seat'), function (e) { e.classList.add('beamout'); }); SND.play('beam'); }, 900);
+    setTimeout(function () {
+      render(G);
+      Array.prototype.forEach.call(document.querySelectorAll('.seat'), function (e) { e.classList.add('beamin'); });
+      SND.play('beam');
+      banner('LIZARD LEADERS', 'NEW SEATS · LIZARDS FOR ' + al.lizard + ' MOVES');
+    }, 2300);
+    setTimeout(function () { beam.classList.remove('on'); ufo.classList.add('away'); }, 3500);
+    setTimeout(function () { ufo.remove(); beam.remove(); Array.prototype.forEach.call(document.querySelectorAll('.seat.beamin'), function (e) { e.classList.remove('beamin'); }); nextMove(); }, 4100);
+  }
+
+  // ── distractions: on screen only, the rules ignore them ──
+  var fxT = [];
+  function later(f, ms) { fxT.push(setTimeout(f, ms)); }
+  // all: also the gorilla, which otherwise walks on after the move is played
+  function clearFx(all) {
+    fxT.forEach(clearTimeout); fxT = [];
+    Array.prototype.forEach.call(document.querySelectorAll(all ? '.fx' : '.fx.dark, .fx.pop'), function (e) { e.remove(); });
+    Array.prototype.forEach.call(document.querySelectorAll('.seat.blown'), function (e) { e.classList.remove('blown'); });
+  }
+  function distract(kind, ms) {
+    if (window.vgTrack) vgTrack('nn_distraction', { kind: kind, moves: G.moves });
+    if (kind === 'gorilla') {
+      var go = document.createElement('div'), left = G.moves % 2;
+      go.className = 'fx gorilla' + (left ? ' rtl' : ''); go.style.animationDuration = (ms + 900) + 'ms';
+      go.appendChild(PX.draw('gorilla', 8)); $('table').appendChild(go); SND.play('thump');
+      for (var t = 350; t < ms + 600; t += 350) setTimeout(function () { SND.play('thump'); }, t);
+      setTimeout(function () { go.remove(); }, ms + 1000);
+    } else if (kind === 'lights') {
+      var dk = document.createElement('div'); dk.className = 'fx dark'; document.body.appendChild(dk);
+      later(function () { dk.classList.add('flicker'); SND.play('lights'); }, ms * 0.05);
+      later(function () { dk.classList.remove('flicker'); dk.classList.add('off'); }, ms * 0.05 + 260);
+      later(function () { dk.classList.remove('off'); dk.classList.add('flicker'); SND.play('lights'); }, ms * 0.7);
+      later(function () { dk.remove(); }, ms * 0.7 + 260);
+    } else if (kind === 'paparazzi') {
+      var n = ms > 1500 ? 6 : 3;
+      for (var i = 0; i < n; i++) later(flash, ms * (0.08 + 0.75 * i / n));
+    }
+  }
+  // One camera flash: a white burst over a leader's face, blown out for a moment.
+  function flash() {
+    var seats = document.querySelectorAll('.seat'); if (!seats.length) return;
+    var el = seats[Math.floor(Math.random() * seats.length)], tb = $('table').getBoundingClientRect(), r = el.getBoundingClientRect();
+    var p = document.createElement('div'); p.className = 'fx pop';
+    p.style.left = (r.left + r.width / 2 - tb.left) + 'px'; p.style.top = (r.top + r.height / 2 - tb.top) + 'px';
+    $('table').appendChild(p); el.classList.add('blown'); SND.play('flash');
+    later(function () { p.remove(); el.classList.remove('blown'); }, 450);
   }
   function nuke(res) {
-    var k = res.war, w = $('nkWhy'); w.innerHTML = '';
+    var k = res.war, w = $('nkWhy'); w.innerHTML = ''; clearFx(true);
     SND.play('nuke');
     w.appendChild(face(G.outer[k])); w.appendChild(document.createTextNode(NN.name(G.outer[k]).toUpperCase() + ' AND '));
     w.appendChild(face(G.inner[k])); w.appendChild(document.createTextNode(NN.name(G.inner[k]).toUpperCase() + ' FACE EACH OTHER · YOU LASTED ' + G.moves + ' MOVE' + (G.moves === 1 ? '' : 'S')));

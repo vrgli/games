@@ -18,20 +18,50 @@
   var OUTER = ['A', 'B', 'D', 'C'], INNER = ['1', '2', '4', '3'];
   // The rhythm, in spells of SPELL moves: an opening at 3 s a move, then HURRY UP at 1 s, then
   // ESCALATION (a third leader goes rogue, still 1 s), then HURRY UP again with the third rogue
-  // standing down, then ESCALATION again, and so on until the war.
-  var SPELL = 6, CLOCK = { open: 3000, hurry: 1000, escalation: 1000 };
-  function phase(m) { return m < SPELL ? 'open' : Math.floor((m - SPELL) / SPELL) % 2 ? 'escalation' : 'hurry'; }
+  // standing down, then ESCALATION again, and so on until the war. The first escalation is
+  // short (FIRST_ESC moves); later ones last a full spell.
+  var SPELL = 6, FIRST_ESC = 3, CLOCK = { open: 3000, hurry: 1000, escalation: 1000 };
+  function phase(m) {
+    if (m < SPELL) return 'open';
+    if (m < 2 * SPELL) return 'hurry';
+    if (m < 2 * SPELL + FIRST_ESC) return 'escalation';
+    return Math.floor((m - 2 * SPELL - FIRST_ESC) / SPELL) % 2 ? 'escalation' : 'hurry';
+  }
   function clockMs(m) { return CLOCK[phase(m)]; }
 
+  // Events. Everything here is drawn from the game's seed, so a server replay meets the same ones.
+  //  · SWAP!: when an escalation ends, a rogue changes seats with a calm leader across the table.
+  //  · Aliens: the leaders beam out and back in reshuffled, as lizards for LIZARD moves.
+  //  · One bigger event (SWAP! or aliens) may come before the first escalation.
+  //  · Distractions (gorilla, lights out, paparazzi) are only on screen; the rules ignore them.
+  //    They come in the opening but never in its first 2 moves; 1 game in 5 has them in the first
+  //    HURRY UP instead, never in the 2 moves before the escalation; never two at once.
+  var LIZARD = 4, DISTRACTIONS = ['gorilla', 'lights', 'paparazzi'];
+  // Extra seconds a replay allows for the pauses these events cause on screen.
+  var EVENT_MS = { swap: 4000, aliens: 8000 };
   // Small seeded PRNG (mulberry32) so a game can be replayed from its seed.
   function rng(seed) { var a = seed >>> 0; return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+  function shuffle(a, r) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(r() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  // The game's event plan. Its own PRNG stream, so the deal for a seed is the same as before.
+  function plan(seed) {
+    var r = rng((seed ^ 0x6A09E667) >>> 0);
+    var late = r() < 0.2, bigRoll = r(), bigAt = 3 + Math.floor(r() * 8), bigKind = r() < 0.5 ? 'swap' : 'aliens', n = r() < 0.35 ? 1 : 2;
+    var big = bigRoll < 0.75 ? { at: bigAt, kind: bigKind } : null;
+    var slots = shuffle((late ? [6, 7, 8, 9] : [2, 3, 4, 5]).filter(function (m) { return !big || m !== big.at; }), r);
+    var kinds = shuffle(DISTRACTIONS.slice(), r), dist = [];
+    for (var i = 0; i < n; i++) dist.push({ at: slots[i], kind: kinds[i] });
+    dist.sort(function (a, b) { return a.at - b.at; });
+    return { late: late, big: big, dist: dist };
+  }
 
   function newGame(seed) {
     if (seed == null) seed = (Math.random() * 4294967296) >>> 0;
     var r = rng(seed), ids = LEADERS.map(function (l) { return l.id; });
-    for (var i = ids.length - 1; i > 0; i--) { var j = Math.floor(r() * (i + 1)); var t = ids[i]; ids[i] = ids[j]; ids[j] = t; }
+    shuffle(ids, r);
     var ro = Math.floor(r() * 4), ri = Math.floor(r() * 3); if (ri >= ro) ri++;   // never facing
-    return { seed: seed, outer: ids.slice(0, 4), inner: ids.slice(4, 8), rogue: {}, rogueOuter: ro, rogueInner: ri, moves: 0, ks: [], extra: null, log: [], over: false, turns: 0 };
+    return { seed: seed, outer: ids.slice(0, 4), inner: ids.slice(4, 8), rogue: {}, rogueOuter: ro, rogueInner: ri, moves: 0, ks: [], extra: null, log: [], over: false, turns: 0,
+      plan: plan(seed), events: [], lizard: 0 };
   }
   // Rogue reveal: fix which two leaders are rogue (the leaders carry it, not the seats).
   function reveal(g) { g.rogue[g.outer[g.rogueOuter]] = true; g.rogue[g.inner[g.rogueInner]] = true; g.log.push('reveal ' + rogues(g)); return g; }
@@ -84,23 +114,70 @@
     }
     return g.over ? g : null;
   }
-  // After a move, when the phase turns: ESCALATION brings a third rogue in, the next HURRY UP
-  // sends that one back. Returns { escalate: pick }, { calm: id } or null.
+  function safe(g) { return legal(g).some(function (m) { return !fatal(g, m); }); }
+  function evRng(g, salt) { return rng((g.seed ^ Math.imul(g.moves + 1, 0x85EBCA6B) ^ salt) >>> 0); }
+  function seatId(g, s) { return (s.ring === 'o' ? g.outer : g.inner)[s.k]; }
+  function seatLbl(s) { return (s.ring === 'o' ? OUTER : INNER)[s.k]; }
+  // SWAP!: a rogue changes seats with a calm leader who is not facing them. Never into a war,
+  // and when possible leaving a safe move. Returns { a: rogue seat, b: calm seat } (before the swap).
+  function swapEvent(g) {
+    var r = evRng(g, 0x5A0B), rs = [], cs = [], c = [], k;
+    for (k = 0; k < 4; k++) [{ ring: 'o', k: k }, { ring: 'i', k: k }].forEach(function (s) { (g.rogue[seatId(g, s)] ? rs : cs).push(s); });
+    rs.forEach(function (a) { cs.forEach(function (b) { if (a.k !== b.k) c.push({ a: a, b: b }); }); });
+    function swapped(t, x) { var A = x.a.ring === 'o' ? t.outer : t.inner, B = x.b.ring === 'o' ? t.outer : t.inner, v = A[x.a.k]; A[x.a.k] = B[x.b.k]; B[x.b.k] = v; return t; }
+    var noWar = c.filter(function (x) { return war(swapped(clone(g), x)) < 0; });
+    var ok = noWar.filter(function (x) { return safe(swapped(clone(g), x)); });
+    var from = ok.length ? ok : noWar; if (!from.length) return null;
+    var x = from[Math.floor(r() * from.length)];
+    var res = { a: { id: seatId(g, x.a), ring: x.a.ring, k: x.a.k }, b: { id: seatId(g, x.b), ring: x.b.ring, k: x.b.k } };
+    swapped(g, x); g.events.push('swap');
+    g.log.push('SWAP! ' + NN.name(res.a.id) + ' ' + seatLbl(x.a) + '* <-> ' + NN.name(res.b.id) + ' ' + seatLbl(x.b) + ' -> ' + rogues(g));
+    return res;
+  }
+  // Aliens: every leader is beamed up and set down in a new seat, never into a war, with a safe
+  // move left. They stay lizards for LIZARD moves (only the look changes; rogues stay rogue).
+  function aliens(g) {
+    var r = evRng(g, 0xA11E), ids = g.outer.concat(g.inner), best = null;
+    for (var tries = 0; tries < 60; tries++) {
+      var p = shuffle(ids.slice(), r), t = clone(g); t.outer = p.slice(0, 4); t.inner = p.slice(4);
+      if (war(t) >= 0 || p.join() === ids.join()) continue;
+      best = best || p;
+      if (safe(t)) { best = p; break; }
+    }
+    if (!best) return null;
+    g.outer = best.slice(0, 4); g.inner = best.slice(4); g.lizard = g.moves + LIZARD; g.events.push('aliens');
+    g.log.push('ALIEN INVASION: the leaders come back as lizards -> ' + rogues(g));
+    return { lizard: LIZARD };
+  }
+  // After a move: when the phase turns, ESCALATION brings a third rogue in; when it ends, that
+  // one stands down and SWAP! follows. Before the first escalation the planned bigger event fires.
+  // Returns { escalate: pick }, { calm: id, swap: s }, { swap: s }, { aliens: … } or null.
   function after(g) {
-    if (g.over || g.moves < SPELL) return null;
-    var was = phase(g.moves - 1), now = phase(g.moves);
-    if (was === now) return null;
-    if (now === 'escalation') { var pick = escalate(g); if (!pick) return null; g.extra = pick.id; return { escalate: pick }; }
-    if (was === 'escalation' && g.extra) {
-      var id = g.extra; delete g.rogue[id]; g.extra = null;
-      g.log.push('de-escalation ' + NN.name(id) + ' stands down -> ' + rogues(g));
-      return { calm: id };
+    if (g.over) return null;
+    var m = g.moves;
+    if (m > 0 && phase(m - 1) !== phase(m)) {
+      if (phase(m) === 'escalation') { var pick = escalate(g); if (!pick) return null; g.extra = pick.id; return { escalate: pick }; }
+      if (phase(m - 1) === 'escalation') {
+        var ev = {};
+        if (g.extra) { ev.calm = g.extra; delete g.rogue[g.extra]; g.extra = null; g.log.push('de-escalation ' + NN.name(ev.calm) + ' stands down -> ' + rogues(g)); }
+        var s = swapEvent(g); if (s) ev.swap = s;
+        return ev.calm || ev.swap ? ev : null;
+      }
+    }
+    var big = g.plan && g.plan.big;
+    if (big && big.at === m) {
+      if (big.kind === 'swap') { var sw = swapEvent(g); return sw ? { swap: sw, big: true } : null; }
+      var al = aliens(g); return al ? { aliens: al } : null;
     }
     return null;
   }
+  // The distraction on screen during the move about to be played, or null.
+  function distraction(g) { var d = g.plan ? g.plan.dist : []; for (var i = 0; i < d.length; i++) if (d[i].at === g.moves) return d[i].kind; return null; }
+  function lizard(g) { return g.moves < (g.lizard || 0); }
+  function pauseMs(g) { return (g.events || []).reduce(function (t, e) { return t + (EVENT_MS[e] || 0); }, 0); }
   function clone(g) { return JSON.parse(JSON.stringify(g)); }
   function logText(g) { return ['Nuclear Negotiations · seed ' + g.seed, 'outer A ' + g.outer[0] + ' B ' + g.outer[1] + ' D ' + g.outer[2] + ' C ' + g.outer[3] + ' (now)', 'inner 1 ' + g.inner[0] + ' 2 ' + g.inner[1] + ' 4 ' + g.inner[2] + ' 3 ' + g.inner[3]].concat(g.log).join('\n'); }
 
-  var NN = { LEADERS: LEADERS, OUTER: OUTER, INNER: INNER, SPELL: SPELL, phase: phase, clockMs: clockMs, after: after, newGame: newGame, replay: replay, reveal: reveal, escalate: escalate, legal: legal, apply: apply, fatal: fatal, war: war, rogues: rogues, notation: notation, logText: logText, name: function (id) { for (var i = 0; i < LEADERS.length; i++) if (LEADERS[i].id === id) return LEADERS[i].nm; return id; } };
+  var NN = { LEADERS: LEADERS, OUTER: OUTER, INNER: INNER, SPELL: SPELL, FIRST_ESC: FIRST_ESC, LIZARD: LIZARD, phase: phase, plan: plan, distraction: distraction, lizard: lizard, pauseMs: pauseMs, clockMs: clockMs, after: after, newGame: newGame, replay: replay, reveal: reveal, escalate: escalate, legal: legal, apply: apply, fatal: fatal, war: war, rogues: rogues, notation: notation, logText: logText, name: function (id) { for (var i = 0; i < LEADERS.length; i++) if (LEADERS[i].id === id) return LEADERS[i].nm; return id; } };
   if (root.exports) root.exports = NN; else root.NN = NN;
 })(typeof module !== 'undefined' ? module : window);

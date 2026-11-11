@@ -134,7 +134,8 @@ export class Accounts {
       const g = ks && NN.replay(row.pending_seed, ks);
       if (!g) return bad('replay failed');
       const took = Date.now() - row.pending_at;
-      if (took < nnMinMs(g.moves) || took > nnMaxMs(g.moves)) return bad('timing');
+      // Events (SWAP!, aliens) pause the table on screen; the replay knows which ones happened.
+      if (took < nnMinMs(g.moves) || took > nnMaxMs(g.moves) + NN.pauseMs(g)) return bad('timing');
       const moves = g.moves;
       this.sql.exec(
         `INSERT INTO nuclear_negotiations (account_id,best,games,updated) VALUES (?,?,1,?)

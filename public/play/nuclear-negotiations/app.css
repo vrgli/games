@@ -96,3 +96,36 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .kicker{margin:4px 0 0;font:600 11px/1 var(--mono);letter-spacing:.16em;color:var(--mute)}
 .sheet .credit{margin:14px 0 0;font:600 11px/1.4 var(--mono);letter-spacing:.12em;color:var(--mute);text-align:center}.sheet .credit a{color:var(--yl);text-decoration:none}
 @media(max-width:640px){#top .mode{display:none}#top{gap:8px}}
+/* ── events ── */
+.fx{pointer-events:none}
+.seat.flyer{position:absolute;z-index:4;transition:left 1s cubic-bezier(.5,0,.3,1),top 1s cubic-bezier(.5,0,.3,1);animation:flyspin 1s ease-in-out 1}
+@keyframes flyspin{50%{transform:scale(1.35);filter:drop-shadow(0 0 16px #ffd400)}}
+.seat.lizard{border-color:#5aa845}.seat.lizard .nm{color:#9dffb0;border-color:rgba(90,168,69,.7)}
+.seat.lizard:not(.rogue){background:radial-gradient(circle at 40% 35%,#2f7a3a 0,#1f5a2a 60%,#143d1c 100%)}
+.ufo{position:absolute;left:50%;top:-4%;width:34%;margin-left:-17%;z-index:5;animation:ufoIn .9s cubic-bezier(.2,.8,.2,1) 1 both}
+.ufo canvas{width:100%;height:auto;image-rendering:pixelated;filter:drop-shadow(0 0 18px #3ad06a);animation:hover 1s ease-in-out infinite alternate}
+.ufo.away{animation:ufoOut .6s ease-in 1 both}
+@keyframes ufoIn{from{transform:translateY(-120%) scale(.4);opacity:0}to{transform:none;opacity:1}}
+@keyframes ufoOut{to{transform:translateY(-160%) scale(.3);opacity:0}}
+@keyframes hover{to{transform:translateY(6%)}}
+.beam{position:absolute;inset:4% 0 0;z-index:3;background:radial-gradient(ellipse at 50% 0,rgba(157,255,176,.65) 0,rgba(58,208,106,.35) 40%,transparent 72%);clip-path:polygon(40% 0,60% 0,100% 100%,0 100%);opacity:0;transition:opacity .4s}
+.beam.on{opacity:1;animation:beamy .25s linear infinite alternate}
+@keyframes beamy{to{filter:brightness(1.3)}}
+.seat.beamout{animation:beamout 1.2s ease-in 1 forwards}
+@keyframes beamout{0%{opacity:1}60%{filter:brightness(2) hue-rotate(90deg)}100%{opacity:0;transform:var(--up) translateY(-60%) scale(.2)}}
+.seat.beamin{animation:beamin 1.1s ease-out 1 both}
+@keyframes beamin{0%{opacity:0;transform:var(--up) translateY(-60%) scale(.2);filter:brightness(2) hue-rotate(90deg)}100%{opacity:1;transform:var(--up)}}
+.gorilla{position:absolute;top:28%;left:-45%;width:44%;z-index:4;animation:walk linear 1 forwards}
+.gorilla.rtl{animation-name:walkback}
+.gorilla canvas{width:100%;height:auto;image-rendering:pixelated;filter:drop-shadow(0 10px 12px rgba(0,0,0,.7));animation:stomp .35s ease-in-out infinite alternate}
+.gorilla.rtl canvas{transform:scaleX(-1)}
+@keyframes walk{from{left:-45%}to{left:101%}}
+@keyframes walkback{from{left:101%}to{left:-45%}}
+@keyframes stomp{from{translate:0 0;rotate:-4deg}to{translate:0 -5%;rotate:4deg}}
+.dark{position:fixed;inset:0;z-index:15;background:#000;opacity:0;transition:opacity .08s}
+.dark.off{opacity:.94}
+.dark.flicker{animation:flicker .26s steps(1) 1}
+@keyframes flicker{0%{opacity:.94}25%{opacity:.2}50%{opacity:.94}75%{opacity:.4}100%{opacity:.94}}
+.pop{position:absolute;width:26%;height:26%;margin:-13% 0 0 -13%;border-radius:50%;z-index:4;background:radial-gradient(circle,#fff 0,rgba(255,255,255,.9) 25%,rgba(255,255,240,.35) 50%,transparent 70%);animation:pop2 .45s ease-out 1 forwards}
+@keyframes pop2{0%{transform:scale(.3);opacity:1}30%{transform:scale(1.15);opacity:1}100%{transform:scale(1.3);opacity:0}}
+.seat.blown canvas{filter:brightness(4) contrast(.4) saturate(0)}
