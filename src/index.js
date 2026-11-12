@@ -7,6 +7,7 @@ import { statsPage } from './stats-page.js';
 import { Accounts } from './accounts.js';
 import { handleAuth, getSession } from './auth.js';
 import { leaderboardPage } from './leaderboard-page.js';
+import { newsRoute } from './news.js';
 export { Room, Stats, Accounts };
 
 const accounts = (env) => env.ACCOUNTS.get(env.ACCOUNTS.idFromName('arcade'));
@@ -130,6 +131,8 @@ export default {
       const me = s ? (await acct(env, '/account?id=' + s.accountId)).account : null;
       return new Response(leaderboardPage(data, me), { headers: { 'Content-Type': 'text/html;charset=utf-8' } });
     }
+    const news = newsRoute(url, env);
+    if (news) return news;
     // Wallop used to be BRUX.
     if (p === '/play/brux' || p.startsWith('/play/brux/')) return Response.redirect(url.origin + '/play/wallop/' + url.search, 301);
     if (p === '/play/wallop') return Response.redirect(url.origin + '/play/wallop/' + url.search, 301);

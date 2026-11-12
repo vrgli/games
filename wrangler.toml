@@ -8,7 +8,7 @@ routes = [{ pattern = "play.vrg.li", custom_domain = true }]
 [assets]
 directory = "public"
 binding = "ASSETS"
-run_worker_first = ["/mp-socket", "/api/*", "/auth/*", "/leaderboard", "/leaderboard.json", "/e", "/stats", "/stats.json", "/arcade", "/arcade/", "/vs/*", "/play/tariff-wars", "/play/brux", "/play/brux/*", "/play/wallop", "/play/nuclear-negotiations", "/robots.txt", "/env.js"]
+run_worker_first = ["/mp-socket", "/api/*", "/auth/*", "/leaderboard", "/leaderboard.json", "/e", "/stats", "/stats.json", "/arcade", "/arcade/", "/vs/*", "/play/tariff-wars", "/play/brux", "/play/brux/*", "/play/wallop", "/play/nuclear-negotiations", "/news", "/news.json", "/feed.xml", "/studio/*", "/robots.txt", "/env.js"]
 
 [[durable_objects.bindings]]
 name = "ROOMS"
@@ -48,7 +48,7 @@ ARCADE_ENV = "uat"
 [env.uat.assets]
 directory = "public"
 binding = "ASSETS"
-run_worker_first = ["/mp-socket", "/api/*", "/auth/*", "/leaderboard", "/leaderboard.json", "/e", "/stats", "/stats.json", "/arcade", "/arcade/", "/vs/*", "/play/tariff-wars", "/play/brux", "/play/brux/*", "/play/wallop", "/play/nuclear-negotiations", "/robots.txt", "/env.js"]
+run_worker_first = ["/mp-socket", "/api/*", "/auth/*", "/leaderboard", "/leaderboard.json", "/e", "/stats", "/stats.json", "/arcade", "/arcade/", "/vs/*", "/play/tariff-wars", "/play/brux", "/play/brux/*", "/play/wallop", "/play/nuclear-negotiations", "/news", "/news.json", "/feed.xml", "/studio/*", "/robots.txt", "/env.js"]
 
 [[env.uat.durable_objects.bindings]]
 name = "ROOMS"
