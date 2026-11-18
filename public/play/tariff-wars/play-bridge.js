@@ -8,7 +8,7 @@
       var a = document.createElement('a');
       a.id = 'arcade-home'; a.href = '/'; a.textContent = '← Home';
       // CANONICAL arcade home button — keep identical across every game's
-      // arcade-bridge.js (see the clearance rule in this game's CSS). Do not
+      // play-bridge.js (see the clearance rule in this game's CSS). Do not
       // restyle per-game: a divergent button is what caused the overlap bugs.
       a.style.cssText = 'position:fixed;left:12px;top:11px;z-index:2147483000;display:inline-flex;' +
         'align-items:center;background:#e8c15a;color:#1a1205;padding:7px 14px;border-radius:9px;' +

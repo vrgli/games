@@ -8,7 +8,7 @@ function table(title, rows) {
 }
 export function statsPage(d) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Stats · play.vrg.li</title><link rel="icon" href="/favicon.ico"><link rel="stylesheet" href="/arcade.css"></head>
+<title>Stats · play.vrg.li</title><link rel="icon" href="/favicon.ico"><link rel="stylesheet" href="/play.css"></head>
 <body><script src="/env.js"></script><script src="/vrg-chrome.js" data-app="Play · stats" data-public="1"></script>
 <main class="wrap"><p class="kicker">PLAY STATISTICS</p><h1>What Play VRG has counted</h1>
 <p class="mute">Generated ${esc(d.generated)}. Aggregates only; see <a href="/privacy">privacy</a>.</p>

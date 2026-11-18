@@ -6,7 +6,7 @@
 body{font-family:"Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--bg);overflow:hidden}
 #app{height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr);overflow:hidden}
 img.px{image-rendering:pixelated;display:block}
-/* ===== TOP BAR — canonical shared header (arcade-header.css); .stat/#flash are what drawTop() fills; the ☰ menu holds New game / Log / How to play ===== */
+/* ===== TOP BAR — canonical shared header (play-header.css); .stat/#flash are what drawTop() fills; the ☰ menu holds New game / Log / How to play ===== */
 .stat{font-size:12px;color:var(--mut);background:var(--pan2);padding:4px 11px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}.stat b{color:var(--ink)}.stat .dn{color:var(--warn);font-weight:800}
 @media (max-width:1560px){.ah-center{flex:0 1 auto}.ah-right{flex:0 0 auto}}
 .ah-right{position:relative}.ah-brand-text{display:none}
@@ -206,7 +206,7 @@ body.tb .box{border-color:rgba(255,107,125,.45)}body.tb #flash{background:linear
   .stat,.ah-ctl{font-size:11px;padding:4px 8px}
 }
 </style>
-<link rel="stylesheet" href="arcade-header.css" />
+<link rel="stylesheet" href="play-header.css" />
 <link rel="icon" href="/favicon.ico"><script src="/env.js"></script><script src="/vg.js" data-game="tariff-wars"></script>
 </head>
 <body><div id="app">
@@ -281,7 +281,7 @@ body.tb .box{border-color:rgba(255,107,125,.45)}body.tb #flash{background:linear
 <p>Your 🤝 Won Deals and the running deals score are in the panel on the left; tap 👀 to review the last deal a leader closed.</p>
 <div style="text-align:center;margin-top:1.4rem"><button class="btn" id="helpClose">Close</button></div></div></div>
 <div id="arena-note"></div>
-<script src="engine.js"></script><script src="sprites.js"></script><script src="goods.js"></script><script src="arcade-bridge.js"></script>
+<script src="engine.js"></script><script src="sprites.js"></script><script src="goods.js"></script><script src="play-bridge.js"></script>
 <script>
 (function(){
  var AUTOTEST=new URLSearchParams(location.search).has('autotest');
@@ -737,7 +737,7 @@ import { startMultiplayer } from './mp-client.js';
 </script>
 <script>(function(){var sh=document.querySelector("#startOv .sheet");if(sh){var c=document.createElement("p");c.style.cssText="margin:14px 0 0;font:600 11px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.12em;color:#8b9098;text-align:center";c.innerHTML='A VRG GAME · <a href="/source/" style="color:#ffd400;text-decoration:none">FREE TO COPY AND REMIX</a>';sh.appendChild(c);var n=document.createElement("div");n.id="vg-acct";n.style.cssText="margin:12px 0 0;padding:10px 12px;border:1px solid #3a3410;border-radius:10px;background:#1a1808;font:600 12px/1.5 system-ui,sans-serif;color:#c4c8ce;text-align:center";n.textContent="Playing as a guest.";sh.insertBefore(n,c);fetch("/api/me",{credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){if(d.account){n.innerHTML="Signed in as <b style=\"color:#ffd400\">"+String(d.account.name||"you").replace(/[<>]/g,"")+"</b> · your wins count on the <a href=\"/leaderboard\" style=\"color:#ffd400\">leaderboard</a>.";return;}var P=[["google","Google"],["github","GitHub"],["discord","Discord"]],on=P.filter(function(x){return d.providers&&d.providers[x[0]];});n.innerHTML="Playing as a guest: this score is not kept. <b style=\"color:#ffd400\">Sign in</b> to keep your wins and join the <a href=\"/leaderboard\" style=\"color:#ffd400\">leaderboard</a>."+(on.length?"<div style=\"margin-top:8px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap\">"+on.map(function(x){return "<a href=\"/auth/"+x[0]+"?next="+encodeURIComponent(location.pathname)+"\" style=\"background:#ffd400;color:#111;padding:6px 10px;border-radius:7px;text-decoration:none;font-weight:800\">"+x[1]+"</a>";}).join("")+"</div>":"<div style=\"margin-top:6px;color:#8b9098\">Sign-in opens soon.</div>");}).catch(function(){});}})();</script>
 <script src="/nick.js"></script>
-<script src="arcade-header.js"></script>
+<script src="play-header.js"></script>
 <script>
 (function(){
   var grp = document.getElementById('ah-ctlgroup');

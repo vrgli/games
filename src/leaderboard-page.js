@@ -7,7 +7,7 @@ const esc = (v) => String(v == null ? '' : v).replace(/[&<>"]/g, (c) => ({ '&': 
 const SIGN_OUT = '<form method="post" action="/auth/logout" style="display:contents"><button type="submit">SIGN OUT</button></form>';
 export function page(title, body, app = 'Play', signedIn = false) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(title)} · play.vrg.li</title><link rel="icon" href="/favicon.ico"><link rel="stylesheet" href="/arcade.css">
+<title>${esc(title)} · play.vrg.li</title><link rel="icon" href="/favicon.ico"><link rel="stylesheet" href="/play.css">
 <style>.av{width:24px;height:24px;border-radius:50%;object-fit:cover;background:var(--panel);border:1px solid var(--line);vertical-align:middle;margin-right:10px}
 .av.i{display:inline-flex;align-items:center;justify-content:center;font:700 11px/1 var(--mono);color:var(--yl)}
 td.p{white-space:nowrap}.you{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:-24px 0 40px;color:var(--mute)}.you b{color:var(--yl)}tr.me td{background:rgba(255,212,0,.08)}tr.me td.p{color:var(--yl)}td.n{color:var(--mute);width:36px}</style></head>
