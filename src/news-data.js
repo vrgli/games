@@ -28,7 +28,7 @@ Play free at play.vrg.li.`,
   {
     id: 'tariff-wars-bribes', date: '2026-11-02', kind: 'game', about: 'Tariff Wars',
     title: 'Tariff Wars: now with bribes',
-    body: `Guessing wrong in Tariff Wars now costs you twice. You still lose deals, and you slip 5 GRAMS (play money for now) into the bribe pot. At the end the top three split it: 50%, 30%, 15%. Fourth place gets a lesson. The house keeps 5%, because of course it does.
+    body: `Guessing wrong in Tariff Wars now costs you twice: the deals you miss, and a bribe into the pot. At the end the top three split it: 50%, 30%, 15%. Fourth place gets a lesson. The house keeps 5%, because of course it does.
 
 Tied at the top after the last round? Nobody goes home. The auction plays on, one round at a time, until a single leader stands alone, and whoever sits third can still crash the party.
 
