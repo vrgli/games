@@ -36,12 +36,12 @@ export function newsRoute(url, env) {
 <updated>${items[0].date}T12:00:00Z</updated><author><name>VRG</name></author>
 ${items.map((n) => `<entry><id>${esc(origin)}/news#${esc(n.id)}</id><title>${esc(n.title)}</title><link href="${esc(abs(n.url) || origin)}"/>
 <updated>${n.date}T12:00:00Z</updated><category term="${esc(n.kind)}"/><category term="${esc(n.about)}"/>
-<content type="html">${esc(paras(n.body).map((t) => '<p>' + esc(t) + '</p>').join(''))}</content></entry>`).join('\n')}
+<content type="html">${esc((n.image ? '<p><img src="' + esc(abs(n.image)) + '" alt="' + esc(n.about) + '"/></p>' : '') + paras(n.body).map((t) => '<p>' + esc(t) + '</p>').join(''))}</content></entry>`).join('\n')}
 </feed>`;
     return new Response(xml, { headers: { ...cors, 'Content-Type': 'application/atom+xml;charset=utf-8' } });
   }
   const body = `<link rel="alternate" type="application/atom+xml" href="${base}/feed.xml"><p class="mute">${studio ? 'Games and apps.' : 'Game updates.'} <a href="${base}/feed.xml">ATOM FEED</a> · <a href="${base}/news.json">JSON</a></p>` +
-    items.map((n) => `<section id="${esc(n.id)}"><p class="kicker">${esc(n.date)} · ${esc(n.kind.toUpperCase())} · ${esc(n.about.toUpperCase())}</p><h2>${esc(n.title)}</h2>${paras(n.body).map((t) => `<p>${esc(t)}</p>`).join('')}${n.url ? `<p><a href="${esc(n.url)}">${n.kind === 'game' ? 'PLAY' : 'OPEN'} →</a></p>` : ''}</section>`).join('');
+    items.map((n) => `<section id="${esc(n.id)}"><p class="kicker">${esc(n.date)} · ${esc(n.kind.toUpperCase())} · ${esc(n.about.toUpperCase())}</p><h2>${esc(n.title)}</h2>${n.image ? `<p><img src="${esc(abs(n.image))}" alt="${esc(n.about)}" style="max-width:100%;border-radius:8px" loading="lazy"></p>` : ''}${paras(n.body).map((t) => `<p>${esc(t)}</p>`).join('')}${n.url ? `<p><a href="${esc(n.url)}">${n.kind === 'game' ? 'PLAY' : 'OPEN'} →</a></p>` : ''}</section>`).join('');
   const html = page(title, body).replace('</head>', `<link rel="alternate" type="application/atom+xml" title="${esc(title)}" href="${esc(base)}/feed.xml"><link rel="alternate" type="application/feed+json" title="${esc(title)}" href="${esc(base)}/news.json"><link rel="me" href="https://mastodon.social/@vrg_li"></head>`);
   return new Response(html, { headers: { 'Content-Type': 'text/html;charset=utf-8' } });
 }
